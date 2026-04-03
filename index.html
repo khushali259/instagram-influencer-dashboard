@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Influencer Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#0a0a0f; --surface:#13131a; --surface2:#1c1c27; --surface3:#232333;
+  --border:rgba(255,255,255,0.07); --accent:#7c6aff; --accent2:#ff6b9d; --accent3:#00e5a0;
+  --text:#f0f0f5; --text2:#8888a8; --text3:#5555aa;
+  --pos:#00e5a0; --neu:#7c6aff; --neg:#ff4d6d; --gold:#ffd166;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:14px;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 10% -10%, rgba(124,106,255,0.1) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 110%, rgba(255,107,157,0.07) 0%,transparent 60%);
+}
+h1,h2,h3,h4,h5{font-family:'Syne',sans-serif;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
+
+/* SHELL */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:260px;min-width:260px;background:var(--surface);
+  border-right:1px solid var(--border);padding:24px 18px;
+  display:flex;flex-direction:column;gap:22px;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.main{flex:1;padding:28px 32px;overflow-x:hidden;min-width:0;}
+
+/* LOGO */
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+.logo-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;
+}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;line-height:1.2;}
+.logo-sub{font-size:9px;color:var(--text2);letter-spacing:2.5px;text-transform:uppercase;}
+
+/* SIDEBAR ELEMENTS */
+.s-label{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:2px;font-weight:600;margin-bottom:6px;}
+.s-section{display:flex;flex-direction:column;}
+.search-input{
+  background:var(--surface2);border:1px solid var(--border);border-radius:9px;
+  padding:9px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
+  width:100%;outline:none;transition:border-color .2s;margin-bottom:7px;
+}
+.search-input:focus{border-color:var(--accent);}
+.search-input::placeholder{color:var(--text3);}
+.btn-search{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;
+  border-radius:8px;padding:9px 0;color:#fff;font-family:'DM Sans',sans-serif;
+  font-weight:600;cursor:pointer;font-size:13px;width:100%;letter-spacing:.3px;
+  transition:opacity .2s;
+}
+.btn-search:hover{opacity:.88;}
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.cat-btn{
+  padding:8px 4px;border-radius:7px;border:1px solid var(--border);
+  background:transparent;color:var(--text2);cursor:pointer;font-size:11px;
+  font-family:'DM Sans',sans-serif;transition:all .18s;text-align:center;
+}
+.cat-btn:hover{border-color:var(--accent);color:var(--accent);}
+.cat-btn.active{background:rgba(124,106,255,0.15);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.topk-row{display:flex;justify-content:space-between;align-items:center;}
+.topk-val{color:var(--accent);font-weight:700;font-size:15px;}
+input[type=range]{width:100%;accent-color:var(--accent);margin-top:6px;}
+.sidebar-foot{
+  margin-top:auto;padding:12px 14px;background:var(--surface2);
+  border-radius:10px;font-size:11px;color:var(--text2);line-height:1.8;border:1px solid var(--border);
+}
+.sidebar-foot strong{color:var(--text);}
+
+/* TABS */
+.tab-bar{display:flex;gap:3px;background:var(--surface2);padding:3px;border-radius:9px;width:fit-content;margin-bottom:24px;}
+.tab{
+  padding:8px 18px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;
+  color:var(--text2);transition:all .18s;border:none;background:none;font-family:'DM Sans',sans-serif;
+}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.4);}
+
+/* STATUS */
+.status{display:flex;align-items:center;gap:10px;padding:11px 15px;border-radius:9px;font-size:12px;margin-bottom:20px;}
+.status.ok  {background:rgba(0,229,160,.08); border:1px solid rgba(0,229,160,.25); color:var(--pos);}
+.status.warn{background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.25);color:var(--gold);}
+.status.err {background:rgba(255,77,109,.08); border:1px solid rgba(255,77,109,.25); color:var(--neg);}
+.status.load{background:rgba(124,106,255,.08);border:1px solid rgba(124,106,255,.25);color:var(--accent);}
+
+/* SECTION HEADER */
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;}
+.sec-title{font-size:19px;font-weight:700;}
+.sec-sub{font-size:12px;color:var(--text2);}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:11px;margin-bottom:22px;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:15px 16px;}
+.mc.a{border-color:rgba(124,106,255,.3);background:rgba(124,106,255,.05);}
+.mc.g{border-color:rgba(0,229,160,.3); background:rgba(0,229,160,.05);}
+.mc.p{border-color:rgba(255,107,157,.3);background:rgba(255,107,157,.05);}
+.mc.d{border-color:rgba(255,209,102,.3);background:rgba(255,209,102,.05);}
+.mc-lbl{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;}
+.mc-val{font-family:'Syne',sans-serif;font-size:21px;font-weight:700;}
+.mc-sub{font-size:10px;color:var(--text2);margin-top:3px;}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:18px;margin-bottom:22px;}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px 20px;}
+.cc-title{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;margin-bottom:14px;}
+.ch-wrap{position:relative;height:215px;}
+.ch-wrap-lg{position:relative;height:260px;}
+
+/* TABLES */
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:22px;}
+.thead{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.ttitle{font-size:14px;font-weight:700;}
+.tbadge{font-size:9px;padding:3px 9px;border-radius:20px;background:rgba(124,106,255,.15);color:var(--accent);font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.tscroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead th{
+  padding:9px 15px;text-align:left;font-size:9px;color:var(--text2);
+  text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);
+  background:var(--surface2);font-weight:700;white-space:nowrap;
+}
+tbody tr{border-bottom:1px solid var(--border);transition:background .12s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr:last-child{border-bottom:none;}
+tbody td{padding:10px 15px;font-size:12px;white-space:nowrap;}
+
+/* MISC */
+.rank{width:22px;height:22px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:var(--surface2);}
+.rank.r1{background:rgba(255,209,102,.2);color:var(--gold);}
+.rank.r2{background:rgba(200,200,200,.12);color:#bbb;}
+.rank.r3{background:rgba(205,127,50,.15);color:#cd7f32;}
+.sp{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;}
+.sp.Positive{background:rgba(0,229,160,.15);color:var(--pos);}
+.sp.Neutral {background:rgba(124,106,255,.15);color:var(--neu);}
+.sp.Negative{background:rgba(255,77,109,.15); color:var(--neg);}
+.sbar-wrap{display:flex;align-items:center;gap:7px;}
+.sbar{height:3px;border-radius:2px;background:rgba(124,106,255,.2);flex:1;}
+.sbar-fill{height:100%;border-radius:2px;background:var(--accent);}
+.snum{font-size:10px;color:var(--text2);min-width:34px;text-align:right;}
+.divider{border:none;border-top:1px solid var(--border);margin:26px 0;}
+.profile-card{
+  background:linear-gradient(135deg,var(--surface),rgba(124,106,255,.07));
+  border:1px solid rgba(124,106,255,.2);border-radius:14px;
+  padding:22px;margin-bottom:22px;display:flex;align-items:center;gap:18px;
+}
+.p-avatar{
+  width:56px;height:56px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-size:24px;font-weight:800;
+}
+.p-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;}
+.p-meta{font-size:11px;color:var(--text2);margin-top:3px;}
+.p-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+.tag{font-size:10px;padding:3px 9px;border-radius:20px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.tag.cat{background:rgba(124,106,255,.1);color:var(--accent);border-color:rgba(124,106,255,.3);}
+.tag.ver{background:rgba(0,229,160,.1);color:var(--pos);border-color:rgba(0,229,160,.3);}
+.empty{padding:40px;text-align:center;color:var(--text2);}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px;}
+.hint{font-size:11px;color:var(--text2);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useMemo} = React;
+
+const BASE = 'https://raw.githubusercontent.com/khushali259/instagram-influencer-dashboard/main/data';
+const URLS = {
+  users    : `${BASE}/user_vectors_v2.csv`,
+  simUsers : `${BASE}/user_similarity_topk.csv`,
+  simItems : `${BASE}/user_item_topk.csv`,
+  posts    : `${BASE}/post_vectors_slim.csv`,
+};
+
+const CATS  = ['beauty','family','fashion','fitness','food','interior','other','pet','travel'];
+const ICONS = {beauty:'💄',family:'👨‍👩‍👧',fashion:'👗',fitness:'💪',food:'🍜',interior:'🏠',other:'✨',pet:'🐾',travel:'✈️'};
+
+const fN = n => { n=parseFloat(n)||0; if(n>=1e6)return(n/1e6).toFixed(1)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return Math.round(n).toLocaleString(); };
+const fP = n => ((parseFloat(n)||0)*100).toFixed(1)+'%';
+const fS = n => (parseFloat(n)||0).toFixed(4);
+const cap= s => s?s[0].toUpperCase()+s.slice(1):'';
+const csv= url => new Promise((res,rej)=>Papa.parse(url,{download:true,header:true,skipEmptyLines:true,complete:r=>res(r.data),error:rej}));
+
+// ── Rank badge
+const Rank = ({r}) => <span className={`rank ${r===1?'r1':r===2?'r2':r===3?'r3':''}`}>{r}</span>;
+
+// ── Sentiment pill
+const Pill = ({v}) => <span className={`sp ${v}`}>{v}</span>;
+
+// ── Score bar
+const SBar = ({v,max=0.6}) => {
+  const p = Math.min(100,(parseFloat(v)||0)/max*100);
+  return <div className="sbar-wrap"><div className="sbar"><div className="sbar-fill" style={{width:p+'%'}}/></div><span className="snum">{fS(v)}</span></div>;
+};
+
+// ── Sentiment bar chart
+function SentChart({user}){
+  const ref=useRef(null); const ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||!user)return;
+    if(ch.current)ch.current.destroy();
+    const d=[
+      (parseFloat(user.avg_pct_positive_predicted)||0)*100,
+      (parseFloat(user.avg_pct_neutral_predicted)||0)*100,
+      (parseFloat(user.avg_pct_negative_predicted)||0)*100,
+    ];
+    ch.current=new Chart(ref.current,{type:'bar',data:{
+      labels:['Positive','Neutral','Negative'],
+      datasets:[{data:d,backgroundColor:['rgba(0,229,160,.7)','rgba(124,106,255,.7)','rgba(255,77,109,.7)'],borderColor:['#00e5a0','#7c6aff','#ff4d6d'],borderWidth:1,borderRadius:6}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toFixed(1)}%`}}},
+      scales:{y:{max:100,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#8888a8',callback:v=>v+'%'}},x:{grid:{display:false},ticks:{color:'#8888a8'}}}}});
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[user]);
+  return <div className="ch-wrap"><canvas ref={ref}/></div>;
+}
+
+// ── Style comparison chart
+function StyleChart({user,mean}){
+  const ref=useRef(null); const ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||!user||!mean)return;
+    if(ch.current)ch.current.destroy();
+    const ms=[
+      {l:'Hashtags',k:'avg_cap_num_hashtags',s:1},
+      {l:'Mentions',k:'avg_cap_num_mentions',s:1},
+      {l:'Exclaim',k:'avg_cap_num_exclamation',s:1},
+      {l:'Caption/10',k:'avg_cap_char_len',s:.1},
+      {l:'VADER×10',k:'avg_cap_vader_compound',s:10},
+      {l:'Subj×10',k:'avg_cap_tb_subjectivity',s:10},
+    ];
+    ch.current=new Chart(ref.current,{type:'bar',data:{
+      labels:ms.map(m=>m.l),
+      datasets:[
+        {label:`@${user.account_username}`,data:ms.map(m=>(parseFloat(user[m.k])||0)*m.s),backgroundColor:'rgba(124,106,255,.7)',borderColor:'#7c6aff',borderWidth:1,borderRadius:4},
+        {label:'Category avg',data:ms.map(m=>(parseFloat(mean[m.k])||0)*m.s),backgroundColor:'rgba(255,255,255,.08)',borderColor:'rgba(255,255,255,.2)',borderWidth:1,borderRadius:4},
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8888a8',font:{size:10}}}},
+      scales:{y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#8888a8'}},x:{grid:{display:false},ticks:{color:'#8888a8',font:{size:10}}}}}});
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[user,mean]);
+  return <div className="ch-wrap"><canvas ref={ref}/></div>;
+}
+
+// ── Distribution histogram
+function DistChart({users,hl}){
+  const ref=useRef(null); const ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||!users?.length)return;
+    if(ch.current)ch.current.destroy();
+    const vals=users.map(u=>parseFloat(u.avg_pct_positive_predicted)||0);
+    const B=20,step=1/B;
+    const counts=Array(B).fill(0);
+    const colors=Array(B).fill('rgba(124,106,255,.55)');
+    vals.forEach(v=>{const i=Math.min(B-1,Math.floor(v/step));counts[i]++;});
+    if(hl){const i=Math.min(B-1,Math.floor((parseFloat(hl.avg_pct_positive_predicted)||0)/step));colors[i]='rgba(0,229,160,.9)';}
+    ch.current=new Chart(ref.current,{type:'bar',data:{
+      labels:Array.from({length:B},(_,i)=>(i*step*100).toFixed(0)+'%'),
+      datasets:[{data:counts,backgroundColor:colors,borderRadius:3}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#8888a8'}},x:{grid:{display:false},ticks:{color:'#8888a8',maxTicksLimit:7}}}}});
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[users,hl]);
+  return <div className="ch-wrap"><canvas ref={ref}/></div>;
+}
+
+// ── Scatter
+function ScatterChart({users,hl}){
+  const ref=useRef(null); const ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||!users?.length)return;
+    if(ch.current)ch.current.destroy();
+    const g={Positive:[],Neutral:[],Negative:[]};
+    users.forEach(u=>{const s=u.user_dominant_sentiment||'Neutral';if(g[s])g[s].push({x:Math.log1p(parseFloat(u.followers)||0),y:Math.log1p(parseFloat(u.avg_like_count)||0),label:u.account_username});});
+    const clr={Positive:'rgba(0,229,160,.55)',Neutral:'rgba(124,106,255,.45)',Negative:'rgba(255,77,109,.55)'};
+    const ds=Object.entries(g).map(([k,d])=>({label:k,data:d,backgroundColor:clr[k],pointRadius:3.5,pointHoverRadius:6}));
+    if(hl)ds.push({label:`@${hl.account_username}`,data:[{x:Math.log1p(parseFloat(hl.followers)||0),y:Math.log1p(parseFloat(hl.avg_like_count)||0),label:hl.account_username}],backgroundColor:'#ffd166',pointRadius:11,pointStyle:'star'});
+    ch.current=new Chart(ref.current,{type:'scatter',data:{datasets:ds},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#8888a8',font:{size:10}}},tooltip:{callbacks:{label:c=>`@${c.raw.label}`}}},
+        scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8888a8'},title:{display:true,text:'Followers (log)',color:'#8888a8',font:{size:10}}},
+                y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8888a8'},title:{display:true,text:'Avg Likes (log)',color:'#8888a8',font:{size:10}}}}}});
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[users,hl]);
+  return <div className="ch-wrap-lg"><canvas ref={ref}/></div>;
+}
+
+// ── Top influencers table
+function TopTable({users,k}){
+  const rows=useMemo(()=>[...users].sort((a,b)=>(parseFloat(b.avg_like_count)||0)-(parseFloat(a.avg_like_count)||0)).slice(0,k),[users,k]);
+  if(!rows.length)return <div className="empty">No data available.</div>;
+  return(
+    <div className="tscroll"><table>
+      <thead><tr>
+        <th>#</th><th>Username</th><th>Followers</th><th>Avg Likes</th>
+        <th>Peak Likes</th><th>Avg Comments</th><th>Hashtags</th>
+        <th>Mentions</th><th>Caption Len</th><th>% Positive</th>
+        <th>% Negative</th><th>Audience</th>
+      </tr></thead>
+      <tbody>{rows.map((u,i)=>(
+        <tr key={u.account_username}>
+          <td><Rank r={i+1}/></td>
+          <td><strong>@{u.account_username}</strong>{u.account_is_verified==='True'&&<span style={{color:'var(--pos)',marginLeft:4,fontSize:11}}>✓</span>}</td>
+          <td>{fN(u.followers)}</td>
+          <td>{fN(u.avg_like_count)}</td>
+          <td>{fN(u.max_like_count)}</td>
+          <td>{fN(u.avg_comment_count)}</td>
+          <td>{(parseFloat(u.avg_cap_num_hashtags)||0).toFixed(1)}</td>
+          <td>{(parseFloat(u.avg_cap_num_mentions)||0).toFixed(1)}</td>
+          <td>{(parseFloat(u.avg_cap_char_len)||0).toFixed(0)}</td>
+          <td><span style={{color:'var(--pos)',fontWeight:700}}>{fP(u.avg_pct_positive_predicted)}</span></td>
+          <td><span style={{color:'var(--neg)',fontWeight:700}}>{fP(u.avg_pct_negative_predicted)}</span></td>
+          <td><Pill v={u.user_dominant_sentiment}/></td>
+        </tr>
+      ))}</tbody>
+    </table></div>
+  );
+}
+
+// ── Similar users table
+function SimUsersTable({username,simUsers,umap}){
+  const rows=useMemo(()=>simUsers.filter(r=>r.user===username).slice(0,20),[simUsers,username]);
+  if(!rows.length)return <div className="empty">No similar users found (requires ≥2 posts in dataset).</div>;
+  return(
+    <div className="tscroll"><table>
+      <thead><tr>
+        <th>#</th><th>Influencer</th><th>Similarity</th><th>Followers</th>
+        <th>Avg Likes</th><th>% Positive</th><th>Topic Score</th><th>NER Score</th>
+      </tr></thead>
+      <tbody>{rows.map(r=>{
+        const u=umap[r.similar_user]||{};
+        return(<tr key={r.similar_user}>
+          <td><Rank r={+r.rank}/></td>
+          <td><strong>@{r.similar_user}</strong></td>
+          <td><SBar v={r.score} max={0.6}/></td>
+          <td>{fN(u.followers||r.similar_followers)}</td>
+          <td>{fN(u.avg_like_count||0)}</td>
+          <td><span style={{color:'var(--pos)'}}>{fP(u.avg_pct_positive_predicted||0)}</span></td>
+          <td style={{color:'var(--accent)'}}>{fS(r.tfidf_component)}</td>
+          <td style={{color:'var(--accent2)'}}>{fS(r.ner_component)}</td>
+        </tr>);
+      })}</tbody>
+    </table></div>
+  );
+}
+
+// ── Recommended posts table
+function SimItemsTable({username,simItems}){
+  const rows=useMemo(()=>simItems.filter(r=>r.user===username).slice(0,10),[simItems,username]);
+  if(!rows.length)return <div className="empty">No recommended posts found.</div>;
+  return(
+    <div className="tscroll"><table>
+      <thead><tr>
+        <th>#</th><th>Post By</th><th>Score</th><th>Likes</th>
+        <th>% Positive</th><th>Topic Score</th><th>Caption Preview</th>
+      </tr></thead>
+      <tbody>{rows.map(r=>(
+        <tr key={r.post_id}>
+          <td><Rank r={+r.rank}/></td>
+          <td><strong>@{r.post_owner}</strong></td>
+          <td><SBar v={r.score} max={0.5}/></td>
+          <td>{fN(r.like_count)}</td>
+          <td><span style={{color:'var(--pos)'}}>{fP(r.pct_positive_predicted)}</span></td>
+          <td style={{color:'var(--accent)'}}>{fS(r.tfidf_component)}</td>
+          <td style={{color:'var(--text2)',maxWidth:280,overflow:'hidden',textOverflow:'ellipsis'}} title={r.caption_preview}>{r.caption_preview}</td>
+        </tr>
+      ))}</tbody>
+    </table></div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// APP
+// ══════════════════════════════════════════════════════════════════════════
+function App(){
+  const [state,setState]=useState({users:[],simUsers:[],simItems:[],posts:[]});
+  const [loading,setLoading]=useState(true);
+  const [loadErr,setLoadErr]=useState(null);
+  const [input,setInput]=useState('');
+  const [username,setUsername]=useState('');
+  const [cat,setCat]=useState('fashion');
+  const [topK,setTopK]=useState(20);
+  const [tab,setTab]=useState('overview');
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const [users,simUsers,simItems,posts]=await Promise.all([csv(URLS.users),csv(URLS.simUsers),csv(URLS.simItems),csv(URLS.posts)]);
+        const norm=s=>(s||'').toLowerCase().trim();
+        users.forEach(u=>u.account_username=norm(u.account_username));
+        simUsers.forEach(r=>{r.user=norm(r.user);r.similar_user=norm(r.similar_user);});
+        simItems.forEach(r=>{r.user=norm(r.user);r.post_owner=norm(r.post_owner);});
+        posts.forEach(p=>p.account_username=norm(p.account_username));
+        setState({users,simUsers,simItems,posts});
+      }catch(e){setLoadErr('Failed to load CSV files from GitHub. Ensure the repo is public and files are uploaded.');}
+      finally{setLoading(false);}
+    })();
+  },[]);
+
+  const umap=useMemo(()=>{const m={};state.users.forEach(u=>m[u.account_username]=u);return m;},[state.users]);
+  const catUsers=useMemo(()=>state.users.filter(u=>u.category===cat),[state.users,cat]);
+  const catMean=useMemo(()=>{
+    if(!catUsers.length)return{};
+    const ks=Object.keys(catUsers[0]).filter(k=>!isNaN(parseFloat(catUsers[0][k])));
+    const m={};
+    ks.forEach(k=>m[k]=(catUsers.reduce((s,u)=>s+(parseFloat(u[k])||0),0)/catUsers.length).toString());
+    return m;
+  },[catUsers]);
+
+  const found=username?umap[username]:null;
+  const userCatUsers=found?state.users.filter(u=>u.category===found.category):[];
+  const userCatMean=useMemo(()=>{
+    if(!userCatUsers.length)return{};
+    const ks=Object.keys(userCatUsers[0]).filter(k=>!isNaN(parseFloat(userCatUsers[0][k])));
+    const m={};
+    ks.forEach(k=>m[k]=(userCatUsers.reduce((s,u)=>s+(parseFloat(u[k])||0),0)/userCatUsers.length).toString());
+    return m;
+  },[userCatUsers]);
+
+  const search=()=>{const v=input.trim().toLowerCase();setUsername(v);if(v)setTab('profile');};
+
+  if(loading) return(
+    <div className="center">
+      <div className="spinner"/>
+      <p style={{color:'var(--text2)',fontWeight:500}}>Loading dashboard…</p>
+      <p className="hint">Fetching data from GitHub (~90MB)</p>
+    </div>
+  );
+  if(loadErr) return(
+    <div className="center">
+      <div style={{fontSize:40}}>⚠️</div>
+      <h2 style={{color:'var(--neg)'}}>Data Load Error</h2>
+      <p style={{color:'var(--text2)',maxWidth:480,textAlign:'center',lineHeight:1.7}}>{loadErr}</p>
+    </div>
+  );
+
+  return(
+    <div className="shell">
+
+      {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
+      <aside className="sidebar">
+        <div className="logo">
+          <div className="logo-icon">📊</div>
+          <div><div className="logo-text">Influencer</div><div className="logo-sub">Analytics</div></div>
+        </div>
+
+        <div className="s-section">
+          <div className="s-label">Search Influencer</div>
+          <input className="search-input" placeholder="e.g. bellahadid" value={input}
+            onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()}/>
+          <button className="btn-search" onClick={search}>Search Profile</button>
+        </div>
+
+        <div className="s-section">
+          <div className="s-label">Category</div>
+          <div className="cat-grid">
+            {CATS.map(c=>(
+              <button key={c} className={`cat-btn ${cat===c?'active':''}`} onClick={()=>setCat(c)}>
+                {ICONS[c]} {cap(c)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="s-section">
+          <div className="topk-row">
+            <span className="s-label">Top-K</span>
+            <span className="topk-val">{topK}</span>
+          </div>
+          <input type="range" min={5} max={50} value={topK} onChange={e=>setTopK(+e.target.value)}/>
+        </div>
+
+        <div className="sidebar-foot">
+          <strong>Dataset</strong><br/>
+          Instagram 2013–2019<br/>
+          {state.users.length.toLocaleString()} influencers indexed<br/>
+          45,564 posts · 645K comments<br/><br/>
+          <strong>Model</strong><br/>
+          Linear SVM · F1 Macro 0.73<br/>
+          Post-level train/test split<br/><br/>
+          <strong>Similarity</strong><br/>
+          TF-IDF + NER overlap<br/>
+          Offline pre-computed
+        </div>
+      </aside>
+
+      {/* ── MAIN ─────────────────────────────────────────────────────────── */}
+      <main className="main">
+
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <div className="tab-bar">
+            <button className={`tab ${tab==='overview'?'active':''}`} onClick={()=>setTab('overview')}>🌐 Category Overview</button>
+            <button className={`tab ${tab==='profile'?'active':''}`} onClick={()=>setTab('profile')}>👤 Influencer Profile</button>
+          </div>
+          <span style={{fontSize:11,color:'var(--text2)'}}>
+            {catUsers.length.toLocaleString()} influencers · <strong style={{color:'var(--text)'}}>{cap(cat)}</strong>
+          </span>
+        </div>
+
+        {/* ══ OVERVIEW TAB ════════════════════════════════════════════════ */}
+        {tab==='overview'&&(<>
+          <div className="sec-head">
+            <span className="sec-title">{ICONS[cat]} {cap(cat)} Influencers</span>
+            <span className="sec-sub">Ranked by average likes per post · {catUsers.length.toLocaleString()} influencers</span>
+          </div>
+
+          <div className="metrics">
+            <div className="mc a"><div className="mc-lbl">Influencers</div><div className="mc-val">{catUsers.length.toLocaleString()}</div></div>
+            <div className="mc g"><div className="mc-lbl">Avg Likes/Post</div><div className="mc-val">{fN(catMean.avg_like_count||0)}</div></div>
+            <div className="mc"><div className="mc-lbl">Avg Comments/Post</div><div className="mc-val">{fN(catMean.avg_comment_count||0)}</div></div>
+            <div className="mc"><div className="mc-lbl">Avg Hashtags</div><div className="mc-val">{(parseFloat(catMean.avg_cap_num_hashtags)||0).toFixed(1)}</div></div>
+            <div className="mc g"><div className="mc-lbl">Avg % Positive</div><div className="mc-val" style={{color:'var(--pos)'}}>{fP(catMean.avg_pct_positive_predicted||0)}</div></div>
+            <div className="mc p"><div className="mc-lbl">Avg % Negative</div><div className="mc-val" style={{color:'var(--neg)'}}>{fP(catMean.avg_pct_negative_predicted||0)}</div></div>
+          </div>
+
+          <div className="chart-grid">
+            <div className="cc">
+              <div className="cc-title">Followers vs Avg Likes (log scale, coloured by audience tone)</div>
+              <ScatterChart users={catUsers} hl={found&&found.category===cat?found:null}/>
+            </div>
+            <div className="cc">
+              <div className="cc-title">Positive Sentiment Distribution across {cap(cat)}</div>
+              <DistChart users={catUsers} hl={found&&found.category===cat?found:null}/>
+            </div>
+          </div>
+
+          <div className="tcard">
+            <div className="thead">
+              <div className="ttitle">Top {topK} {cap(cat)} Influencers</div>
+              <div className="tbadge">By Avg Likes</div>
+            </div>
+            <TopTable users={catUsers} k={topK}/>
+          </div>
+        </>)}
+
+        {/* ══ PROFILE TAB ═════════════════════════════════════════════════ */}
+        {tab==='profile'&&(<>
+
+          {/* No search yet */}
+          {!username&&(
+            <div className="empty" style={{marginTop:60}}>
+              <div style={{fontSize:36,marginBottom:12}}>🔍</div>
+              <h3 style={{marginBottom:8}}>Search for an Influencer</h3>
+              <p>Enter a username in the sidebar to see personalised results,<br/>or browse the Category Overview tab.</p>
+            </div>
+          )}
+
+          {/* Username not in dataset → general */}
+          {username&&!found&&(<>
+            <div className="status warn">
+              <span className="dot"/>
+              <span><strong>@{username}</strong> not found. Showing general recommendations for <strong>{cap(cat)}</strong> (category mean profile).</span>
+            </div>
+            <div className="sec-head">
+              <span className="sec-title">{ICONS[cat]} General — {cap(cat)}</span>
+              <span className="sec-sub">Category average profile</span>
+            </div>
+            <div className="metrics">
+              <div className="mc g"><div className="mc-lbl">Category Avg Likes</div><div className="mc-val">{fN(catMean.avg_like_count||0)}</div></div>
+              <div className="mc"><div className="mc-lbl">Avg Comments</div><div className="mc-val">{fN(catMean.avg_comment_count||0)}</div></div>
+              <div className="mc"><div className="mc-lbl">Avg Hashtags</div><div className="mc-val">{(parseFloat(catMean.avg_cap_num_hashtags)||0).toFixed(1)}</div></div>
+              <div className="mc g"><div className="mc-lbl">Avg % Positive</div><div className="mc-val" style={{color:'var(--pos)'}}>{fP(catMean.avg_pct_positive_predicted||0)}</div></div>
+              <div className="mc p"><div className="mc-lbl">Avg % Negative</div><div className="mc-val" style={{color:'var(--neg)'}}>{fP(catMean.avg_pct_negative_predicted||0)}</div></div>
+            </div>
+            <div className="tcard">
+              <div className="thead"><div className="ttitle">Top {topK} {cap(cat)} Influencers</div><div className="tbadge">General</div></div>
+              <TopTable users={catUsers} k={topK}/>
+            </div>
+          </>)}
+
+          {/* Username found → personalised */}
+          {username&&found&&(<>
+            <div className="status ok">
+              <span className="dot"/>
+              <span>Profile found: <strong>@{username}</strong> · {cap(found.category)} · {found.account_is_verified==='True'?'✓ Verified':''}</span>
+            </div>
+
+            {/* Profile card */}
+            <div className="profile-card">
+              <div className="p-avatar">{(username[0]||'?').toUpperCase()}</div>
+              <div>
+                <div className="p-name">@{username}</div>
+                <div className="p-meta">{fN(found.followers)} followers · {fN(found.posts_total)} total IG posts</div>
+                <div className="p-tags">
+                  <span className="tag cat">{ICONS[found.category]||''} {cap(found.category)}</span>
+                  {found.account_is_verified==='True'&&<span className="tag ver">✓ Verified</span>}
+                  <span className="tag">{found.num_posts_in_dataset} posts in dataset</span>
+                  <span className="tag">Audience: {found.user_dominant_sentiment}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="metrics">
+              <div className="mc d"><div className="mc-lbl">Followers</div><div className="mc-val" style={{color:'var(--gold)'}}>{fN(found.followers)}</div></div>
+              <div className="mc g"><div className="mc-lbl">Avg Likes/Post</div><div className="mc-val">{fN(found.avg_like_count)}</div><div className="mc-sub">Peak {fN(found.max_like_count)}</div></div>
+              <div className="mc a"><div className="mc-lbl">Avg Comments/Post</div><div className="mc-val">{fN(found.avg_comment_count)}</div><div className="mc-sub">Peak {fN(found.max_comment_count)}</div></div>
+              <div className="mc"><div className="mc-lbl">Avg Hashtags</div><div className="mc-val">{(parseFloat(found.avg_cap_num_hashtags)||0).toFixed(1)}</div></div>
+              <div className="mc"><div className="mc-lbl">Avg Mentions</div><div className="mc-val">{(parseFloat(found.avg_cap_num_mentions)||0).toFixed(1)}</div></div>
+              <div className="mc"><div className="mc-lbl">Avg Caption Len</div><div className="mc-val">{(parseFloat(found.avg_cap_char_len)||0).toFixed(0)}</div><div className="mc-sub">characters</div></div>
+              <div className="mc g"><div className="mc-lbl">% Positive Audience</div><div className="mc-val" style={{color:'var(--pos)'}}>{fP(found.avg_pct_positive_predicted)}</div></div>
+              <div className="mc p"><div className="mc-lbl">% Negative Audience</div><div className="mc-val" style={{color:'var(--neg)'}}>{fP(found.avg_pct_negative_predicted)}</div></div>
+            </div>
+
+            {/* Charts row 1 */}
+            <div className="chart-grid">
+              <div className="cc">
+                <div className="cc-title">Audience Sentiment Breakdown</div>
+                <SentChart user={found}/>
+              </div>
+              <div className="cc">
+                <div className="cc-title">Caption Style vs {cap(found.category)} Average</div>
+                <StyleChart user={found} mean={userCatMean}/>
+              </div>
+            </div>
+
+            {/* Charts row 2 */}
+            <div className="chart-grid">
+              <div className="cc">
+                <div className="cc-title">Followers vs Avg Likes — {cap(found.category)} (⭐ = you)</div>
+                <ScatterChart users={userCatUsers} hl={found}/>
+              </div>
+              <div className="cc">
+                <div className="cc-title">Your % Positive vs {cap(found.category)} Distribution (green = you)</div>
+                <DistChart users={userCatUsers} hl={found}/>
+              </div>
+            </div>
+
+            <hr className="divider"/>
+
+            {/* Similar users */}
+            <div className="tcard">
+              <div className="thead">
+                <div className="ttitle">👥 Similar Influencers</div>
+                <div className="tbadge">Personalised · {cap(found.category)}</div>
+              </div>
+              <SimUsersTable username={username} simUsers={state.simUsers} umap={umap}/>
+            </div>
+            <p style={{fontSize:10,color:'var(--text2)',marginTop:-16,marginBottom:22,paddingLeft:18}}>
+              Score = 0.6 × TF-IDF topic overlap + 0.3 × NER entity overlap + 0.1 × sentiment alignment
+            </p>
+
+            {/* Recommended posts */}
+            <div className="tcard">
+              <div className="thead">
+                <div className="ttitle">📄 Recommended Posts</div>
+                <div className="tbadge">Top 10 · {cap(found.category)}</div>
+              </div>
+              <SimItemsTable username={username} simItems={state.simItems}/>
+            </div>
+            <p style={{fontSize:10,color:'var(--text2)',marginTop:-16,marginBottom:22,paddingLeft:18}}>
+              Score = 0.6 × TF-IDF topic similarity + 0.4 × NER entity overlap
+            </p>
+
+            <hr className="divider"/>
+
+            {/* General category explorer — existing users can browse any category */}
+            <div className="sec-head">
+              <span className="sec-title">🌐 Browse Any Category</span>
+              <span className="sec-sub">{cap(cat)} · general leaderboard</span>
+            </div>
+            <div className="tcard">
+              <div className="thead">
+                <div className="ttitle">Top {topK} — {cap(cat)}</div>
+                <div className="tbadge">By Avg Likes</div>
+              </div>
+              <TopTable users={catUsers} k={topK}/>
+            </div>
+          </>)}
+
+        </>)}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
